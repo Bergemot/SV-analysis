@@ -3,6 +3,11 @@
 SV Frequency Classification: Shared / Major / Polymorphic / Singleton
 Input:  /data/liujt/data/cover2.vcf  (SURVIVOR merged, 177 samples)
 Output: sv_category_stacked_bar.png, sv_category_pie.png  (same directory as script)
+
+NOTE: This script uses the COMPLETE unfiltered dataset (all SVs including SUPP=1
+singletons) to provide a full overview of SV frequency distribution. The total SV
+count (~176,000) is therefore higher than the SUPP>=2 filtered set (~139,000) used
+in other analyses (variant_type_stats, length_distribution, growth_curve).
 """
 
 import os
