@@ -2,7 +2,7 @@
 """
 SV Discovery Growth Curve
 Input:  /data/liujt/data/cover2.vcf  (SURVIVOR merged, 177 samples)
-Filter: SUPP >= 2  (exclude singletons)
+Filter: none (all 176,001 SVs)
 Output: sv_growth_curve.png, sv_growth_mean_std.csv  (same directory as script)
 """
 
@@ -18,7 +18,6 @@ VCF      = "/data/liujt/data/cover2.vcf"
 OUT_PNG  = os.path.join(HERE, "sv_growth_curve.png")
 OUT_CSV  = os.path.join(HERE, "sv_growth_mean_std.csv")
 N_PERM   = 100
-MIN_SUPP = 2
 
 # ── 1. Parse SUPP_VEC ────────────────────────────────────────────────────────
 print("Parsing VCF ...")
@@ -34,15 +33,12 @@ with open(VCF) as fh:
             continue
         fields = line.strip().split("\t")
         info   = fields[7]
-        supp   = int(next(x for x in info.split(";") if x.startswith("SUPP=")).split("=")[1])
-        if supp < MIN_SUPP:
-            continue
         vec_str = next(x for x in info.split(";") if x.startswith("SUPP_VEC=")).split("=")[1]
         supp_vecs.append([int(c) for c in vec_str])
 
 mat = np.array(supp_vecs, dtype=np.uint8)
 n_sv = len(supp_vecs)
-print(f"  {n_sv} SVs (SUPP>={MIN_SUPP}), {n_samples} samples")
+print(f"  {n_sv} SVs (no filter), {n_samples} samples")
 
 # ── 2. Rarefaction ───────────────────────────────────────────────────────────
 print(f"Running {N_PERM} permutations ...")

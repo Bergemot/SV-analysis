@@ -2,7 +2,7 @@
 """
 SV Length Distribution by Type
 Input:  /data/liujt/data/cover2.vcf  (SURVIVOR merged, 177 samples)
-Filter: SUPP >= 2, SVLEN < 1,000,000
+Filter: none (all 176,001 SVs), SVLEN < 1,000,000
 Output: sv_length_kde.png, sv_type_count_bar.png  (same directory as script)
 """
 
@@ -21,7 +21,6 @@ HERE     = os.path.dirname(os.path.abspath(__file__))
 VCF      = "/data/liujt/data/cover2.vcf"
 OUT_KDE  = os.path.join(HERE, "sv_length_kde.png")
 OUT_BAR  = os.path.join(HERE, "sv_type_count_bar.png")
-MIN_SUPP = 2
 
 COLOR = {
     "DEL": "#34679a",
@@ -39,9 +38,6 @@ with open(VCF) as fh:
         if line.startswith("#"):
             continue
         info  = line.split("\t")[7]
-        supp  = int(re.search(r"SUPP=(\d+)", info).group(1))
-        if supp < MIN_SUPP:
-            continue
         m_t = re.search(r"SVTYPE=(\w+)", info)
         m_l = re.search(r"SVLEN=(-?\d+)", info)
         if not m_t or not m_l:
