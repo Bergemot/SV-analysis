@@ -1,0 +1,23 @@
+# Large data files
+*.vcf
+*.vcf.gz
+*.bam
+*.bam.bai
+*.fa
+*.fa.fai
+*.fasta
+*.tif
+*.zip
+
+# Result files (keep scripts, ignore outputs)
+*.png
+*.csv
+*.tsv
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
