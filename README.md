@@ -1,6 +1,6 @@
-# SV Analysis — *Zeuzera multistrigata*
+# SV Analysis — *Atrijuglans hetaohei*
 
-Structural variation (SV) analysis pipeline for 177 whole-genome resequencing samples of the walnut leopard moth (*Zeuzera multistrigata*). SVs were called with Delly, Lumpy, and Manta, then merged with SURVIVOR.
+Structural variation (SV) analysis pipeline for 177 whole-genome resequencing samples of the walnut shoot moth (*Atrijuglans hetaohei*). SVs were called with Delly, Lumpy, and Manta, then merged with SURVIVOR.
 
 ---
 
@@ -8,7 +8,7 @@ Structural variation (SV) analysis pipeline for 177 whole-genome resequencing sa
 
 | Item | Detail |
 |---|---|
-| Species | *Zeuzera multistrigata* |
+| Species | *Atrijuglans hetaohei* |
 | Samples | 177 individuals |
 | Reference genome | Feng et al., 2025 |
 | SV callers | Delly · Lumpy · Manta |
