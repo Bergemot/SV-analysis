@@ -1,13 +1,117 @@
-目前我们需要重新做一遍SV分析	，好消息是我们的vcf文件还保存着，之前的一些结果图还有，坏消息是除此之外什么都没有了，按照流程我们需要跑如下的内容，我已经把之前的结果和图片放在了对应的文件夹里，重新写脚本复刻这些结果和图片：
-- SV数据集的一些基础统计【完成】：
-    - 增长曲线；变异类型（数量、平均长度、总长度、2.5%长度、97.5%长度）\
-    - 根据SV在样本中的出现频率，将其划分为四个频率等级：共享SV（Shared SV）（在所有样本中均被识别）、主要SV（Major SV）（在≥50%的样本中被识别）、多态SV（Polymorphic SV）（在>1个样本中被识别）以及个体SV（Singleton SV）（仅在单个样本中被识别）。四个频率等级进行数量统计
-    - 四个变异类型（DEL DUP INS INV）的长度分布
-- ANNOVAR注释，参考基因组在/data/liujt/ref
-- 统计四类变异的基因组分布：将结构变异按基因组中的注释位置划分为三类：（1）外显子区（Exonic），即与蛋白质编码序列重叠的变异；（2）调控区（Regulatory），包括UTR及基因上下游区域，可能涉及转录或转录后调控过程；（3）非编码区（Noncoding），包括内含子和基因间区，不参与蛋白质编码。【都有结果和图】
-- 结构变异与重复序列及形成机制：统计不同类型SV与重复序列及基因区域的重叠比例，并以随机抽取方式构建背景分布；在确认SV在重复序列区域整体显著富集的基础上，研究进一步比较了不同类型重复序列元件与SV的重叠比例差异；将鉴定到的SV按形成机制划分为四类：可变数目串联重复（Variable Number Tandem Repeat，VNTR）、非等位同源重组（Non-Allelic 0Homologous Recombination，NAHR）、转座元件介导（TE-mediated）以及非同源重组（Non-Homologous Recombination，NHR）【都有结果和图】
-- 基于177个样本的重测序数据鉴定得到的结构变异（SV）进行ADMIXTURE(Hubisz et al., 2009)分析进行种群结构推断。以及主成分分析（PCA）【都有结果和图】
-- 基于SV的四个群体的遗传分化指数FST计算
-- 各染色体的结构变异密度以及核苷酸多样性(π)的分布特征。
-- 基于SV的选择性清除信号鉴定以及候选区域的功能富集
-- GEA分析 这部分是Claude进行的 你看看能不能找到什么历史记录，没有的话我们再重新跑，结果图片都在
+# SV Analysis — *Zeuzera multistrigata*
+
+Structural variation (SV) analysis pipeline for 177 whole-genome resequencing samples of the walnut leopard moth (*Zeuzera multistrigata*). SVs were called with Delly, Lumpy, and Manta, then merged with SURVIVOR.
+
+---
+
+## Dataset
+
+| Item | Detail |
+|---|---|
+| Species | *Zeuzera multistrigata* |
+| Samples | 177 individuals |
+| Reference genome | Feng et al., 2025 |
+| SV callers | Delly · Lumpy · Manta |
+| Merge tool | SURVIVOR 1.0.7 |
+| Merged VCF | `cover2.vcf` |
+| Filter | SUPP ≥ 2 (singletons excluded unless noted) |
+
+**SV counts after filtering (SUPP ≥ 2)**
+
+| Type | Count |
+|---|---|
+| DEL | 127,187 |
+| DUP | 7,402 |
+| INS | 2,557 |
+| INV | 2,146 |
+| **Total** | **139,292** |
+
+---
+
+## Repository structure
+
+```
+SV-analysis/
+├── scripts/                          # Early-version scripts (reference)
+│   ├── 01_growth_curve.py
+│   ├── 02_variant_type_stats.py
+│   ├── 03_length_distribution.py
+│   └── 04_frequency_classification.py
+│
+└── 01_basic_stats/
+    ├── growth_curve/
+    │   └── growth_curve.py           # SV accumulation curve (100 permutations)
+    ├── variant_type_stats/
+    │   └── variant_type_stats.py     # Per-type count table + bar chart
+    ├── length_distribution/
+    │   └── length_distribution.py    # KDE length distribution + count bar chart
+    └── frequency_classification/
+        └── frequency_classification.py  # Shared/Major/Polymorphic/Singleton
+```
+
+---
+
+## Analyses
+
+### 01 · Basic statistics ✅
+| Script | Output |
+|---|---|
+| `growth_curve.py` | `sv_growth_curve.png`, `sv_growth_mean_std.csv` |
+| `variant_type_stats.py` | `sv_type_table.png`, `sv_type_barplot.png` |
+| `length_distribution.py` | `sv_length_kde.png`, `sv_type_count_bar.png` |
+| `frequency_classification.py` | `sv_category_stacked_bar.png`, `sv_category_pie.png` |
+
+Frequency categories are defined as:
+
+| Category | Criterion |
+|---|---|
+| Shared SV | Present in all 177 samples |
+| Major SV | Present in ≥ 50% of samples |
+| Polymorphic SV | Present in > 1 sample |
+| Singleton SV | Present in exactly 1 sample |
+
+### 02 · ANNOVAR annotation
+Functional annotation of SVs against the reference genome.
+
+### 03 · Genomic distribution
+SVs classified into Exonic, Regulatory (UTR / upstream / downstream), and Noncoding (intronic / intergenic) regions.
+
+### 04 · Repeat sequences & formation mechanisms
+Overlap analysis with repeat elements; SVs classified into VNTR, NAHR, TE-mediated, and NHR formation mechanisms.
+
+### 05 · Population structure
+ADMIXTURE and PCA based on SV genotypes across four populations.
+
+### 06 · Population differentiation (F~ST~)
+Pairwise F~ST~ calculated among the four populations.
+
+### 07 · SV density & nucleotide diversity (π)
+Per-chromosome distribution of SV density and π.
+
+### 08 · Selection sweep
+Identification of selection signals and functional enrichment of candidate regions.
+
+### 09 · GEA
+Genotype–environment association analysis linking SV variation to climate variables.
+
+---
+
+## Color palette
+
+```python
+color_dict = {
+    "DEL": "#34679a",
+    "DUP": "#87b9d6",
+    "INS": "#f5b785",
+    "INV": "#e27861",
+}
+```
+
+---
+
+## Dependencies
+
+```
+python >= 3.8
+numpy · pandas · matplotlib · seaborn · scipy
+```
