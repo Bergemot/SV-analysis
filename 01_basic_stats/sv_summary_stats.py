@@ -1,97 +1,100 @@
 #!/usr/bin/env python3
 """
-SV summary statistics: count, avg/total/2.5%/97.5% length per SV type.
-Uses the full ANNOVAR-annotated set (no filter, all ~176k SVs; ~167k after removing ANNOVAR invalid entries).
-
-Input:
-  SV_annovar.output2.variant_function  — annotation labels (col 0) + coordinates
-  sv_type.txt                          — chr, start, ID, SVTYPE  (key: chr+start)
-Output:
-  sv_summary_table.tsv
+SV summary statistics table: count, mean/total/2.5%/97.5% length per SV type.
+Input:  /data/liujt/data/cover2.vcf  (all 176,001 SVs, no filter)
+Output: sv_summary_table.tsv, sv_summary_table.png
 """
 
+import os
+import re
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
-VARFUNC  = "/data/liujt/SV/02_ANNOVAR_annotation/SV_annovar.output2.variant_function"
-SVTYPE_F = "/data/liujt/SV/02_ANNOVAR_annotation/sv_type.txt"
-OUT      = "/data/liujt/SV/01_basic_stats/sv_summary_table.tsv"
+HERE    = os.path.dirname(os.path.abspath(__file__))
+VCF     = "/data/liujt/data/cover2.vcf"
+OUT_TSV = os.path.join(HERE, "sv_summary_table.tsv")
+OUT_PNG = os.path.join(HERE, "sv_summary_table.png")
+ORDER   = ["DEL", "DUP", "INS", "INV"]
 
-# ── genomic region classification ──────────────────────────────────────────
-EXONIC     = {"exonic", "ncRNA_exonic", "splicing", "ncRNA_splicing"}
-REGULATORY = {"UTR3", "UTR5", "upstream", "downstream",
-              "upstream;downstream", "UTR5;UTR3"}
+# ── 1. Parse VCF ──────────────────────────────────────────────────────────────
+lengths = {t: [] for t in ORDER}
 
-def classify(annot):
-    if annot in EXONIC:
-        return "Exonic"
-    if annot in REGULATORY:
-        return "Regulatory"
-    return "Noncoding"
-
-# ── load SVTYPE lookup (chr+start → svtype) ────────────────────────────────
-svtype_map = {}
-with open(SVTYPE_F) as fh:
+with open(VCF) as fh:
     for line in fh:
-        parts = line.rstrip("\n").split("\t")
-        key = (parts[0], parts[1])   # (chr, start)  0-based in VCF/sv_type.txt
-        svtype_map[key] = parts[3]   # SVTYPE
-
-print(f"SVTYPE entries loaded: {len(svtype_map):,}")
-
-# ── load annotation ────────────────────────────────────────────────────────
-rows = []
-missing = 0
-with open(VARFUNC) as fh:
-    for line in fh:
-        parts = line.rstrip("\n").split("\t")
-        annot  = parts[0]
-        chrom  = parts[2]
-        start  = parts[3]
-        end    = int(parts[4])
-        length = end - int(start)
-        region = classify(annot)
-
-        # Some entries match directly; others need start-1 (ANNOVAR 1-based shift)
-        svtype = svtype_map.get((chrom, start)) or \
-                 svtype_map.get((chrom, str(int(start) - 1)))
-        if svtype is None:
-            missing += 1
+        if line.startswith("#"):
             continue
+        info  = line.split("\t")[7]
+        m_t   = re.search(r"SVTYPE=(\w+)", info)
+        m_l   = re.search(r"SVLEN=(-?\d+)", info)
+        if not m_t or not m_l:
+            continue
+        t = m_t.group(1)
+        l = abs(int(m_l.group(1)))
+        if t in lengths:
+            lengths[t].append(l)
 
-        rows.append({"svtype": svtype, "length": length, "region": region})
-
-print(f"Records matched: {len(rows):,}  |  unmatched: {missing:,}")
-df = pd.DataFrame(rows)
-
-# ── compute stats per group ────────────────────────────────────────────────
-def stats(sub):
-    L   = sub["length"]
-    n   = len(sub)
-    reg = sub["region"].value_counts()
-    exo = int(reg.get("Exonic", 0))
-    rg  = int(reg.get("Regulatory", 0))
-    nc  = int(reg.get("Noncoding", 0))
-    return pd.Series({
-        "Count":             n,
-        "Mean_length(bp)":   round(L.mean(), 1),
-        "Total_length(bp)":  int(L.sum()),
-        "P2.5_length(bp)":   int(np.percentile(L, 2.5)),
-        "P97.5_length(bp)":  int(np.percentile(L, 97.5)),
-        "Exonic_n":          exo,
-        "Exonic_%":          round(exo / n * 100, 1),
-        "Regulatory_n":      rg,
-        "Regulatory_%":      round(rg / n * 100, 1),
-        "Noncoding_n":       nc,
-        "Noncoding_%":       round(nc / n * 100, 1),
+# ── 2. Compute stats ──────────────────────────────────────────────────────────
+rows = []
+for t in ORDER:
+    arr = np.array(lengths[t])
+    rows.append({
+        "Type":             f"{t}s",
+        "Count":            len(arr),
+        "Mean_length(bp)":  round(float(arr.mean()), 1),
+        "Total_length(bp)": int(arr.sum()),
+        "P2.5_length(bp)":  round(float(np.percentile(arr, 2.5)), 1),
+        "P97.5_length(bp)": round(float(np.percentile(arr, 97.5)), 1),
     })
 
-types  = [t for t in ["DEL", "DUP", "INS", "INV"] if t in df["svtype"].values]
-result = df.groupby("svtype").apply(stats).loc[types]
-overall = stats(df).rename("All")
-result  = pd.concat([result, overall.to_frame().T])
-result.index.name = "SV_type"
+# Add total row
+all_lens = np.concatenate([lengths[t] for t in ORDER])
+rows.append({
+    "Type":             "All",
+    "Count":            len(all_lens),
+    "Mean_length(bp)":  round(float(all_lens.mean()), 1),
+    "Total_length(bp)": int(all_lens.sum()),
+    "P2.5_length(bp)":  round(float(np.percentile(all_lens, 2.5)), 1),
+    "P97.5_length(bp)": round(float(np.percentile(all_lens, 97.5)), 1),
+})
 
-result.to_csv(OUT, sep="\t")
-print(result.to_string())
-print(f"\nSaved → {OUT}")
+df = pd.DataFrame(rows)
+
+# ── 3. Save TSV ───────────────────────────────────────────────────────────────
+df.to_csv(OUT_TSV, sep="\t", index=False)
+print(df.to_string(index=False))
+print(f"\nSaved → {OUT_TSV}")
+
+# ── 4. Save PNG table ─────────────────────────────────────────────────────────
+col_labels = ["Type", "Count", "Mean Length (bp)", "Total Length (bp)", "2.5% Length (bp)", "97.5% Length (bp)"]
+cell_text  = [
+    [r["Type"],
+     f"{r['Count']:,}",
+     f"{r['Mean_length(bp)']:,}",
+     f"{r['Total_length(bp)']:,}",
+     f"{r['P2.5_length(bp)']:,}",
+     f"{r['P97.5_length(bp)']:,}"]
+    for _, r in df.iterrows()
+]
+
+fig, ax = plt.subplots(figsize=(11, 2.8))
+ax.axis("off")
+tbl = ax.table(cellText=cell_text, colLabels=col_labels, loc="center", cellLoc="center")
+tbl.auto_set_font_size(False)
+tbl.set_fontsize(11)
+tbl.scale(1, 1.8)
+
+for j in range(len(col_labels)):
+    tbl[0, j].set_facecolor("#e8eaf0")
+    tbl[0, j].set_text_props(weight="bold")
+
+# Highlight total row
+for j in range(len(col_labels)):
+    tbl[len(rows), j].set_facecolor("#f5f5f5")
+    tbl[len(rows), j].set_text_props(style="italic")
+
+plt.tight_layout()
+plt.savefig(OUT_PNG, dpi=300, bbox_inches="tight")
+print(f"Saved → {OUT_PNG}")
