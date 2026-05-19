@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 SV summary statistics: count, avg/total/2.5%/97.5% length per SV type.
-Uses the ANNOVAR-annotated set (SUPP>=2 filtered, ~139k SVs).
+Uses the full ANNOVAR-annotated set (no filter, all ~176k SVs; ~167k after removing ANNOVAR invalid entries).
 
 Input:
   SV_annovar.output2.variant_function  — annotation labels (col 0) + coordinates
